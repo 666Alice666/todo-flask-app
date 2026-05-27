@@ -1,3 +1,4 @@
+import signal
 from flask import Flask, session, request, render_template, redirect, url_for
 from config import CONFIG
 from models import db, Task
@@ -41,6 +42,27 @@ db.init_app(app)
 
 first_request_handled = False
 
+# Флаг для отслеживания состояния завершения
+SHUTDOWN_REQUESTED = False
+
+def graceful_shutdown(signum, frame):
+    global SHUTDOWN_REQUESTED
+    print("Graceful shutdown initiated...", flush=True)
+    SHUTDOWN_REQUESTED = True
+
+    # Дождитесь завершения текущих запросов
+    time.sleep(5)  # Тайм-аут для завершения активных запросов
+
+    # Закрытие соединений с БД и другими сервисами
+    print("Closing database connections...", flush=True)
+
+    # Завершение процесса
+    sys.exit(0)
+
+# Регистрация обработчиков сигналов
+signal.signal(signal.SIGTERM, graceful_shutdown)
+signal.signal(signal.SIGINT, graceful_shutdown)
+
 def ensure_tables():
     global first_request_handled
     if not first_request_handled:
@@ -73,7 +95,8 @@ def log_response(response):
 @app.route('/', methods=['GET', 'POST'])
 def index():
     ensure_tables()
-
+    if SHUTDOWN_REQUESTED:
+        return "Service is shutting down...", 503
     if request.method == 'POST':
         task_content = request.form['task']
         if task_content:
@@ -94,6 +117,8 @@ def delete_task(id):
     db.session.commit()
     logger.info("Task deleted", request_id=request.request_id, task_id=id)
     return redirect(url_for('index'))
+
+
 
 if __name__ == '__main__':
     port = CONFIG['PORT']
