@@ -109,8 +109,8 @@
             <h2>Список задач</h2>
             {% for task in tasks %}
                 <div class="task-item">
-                    <span>{{ task }}</span>
-                    <a href="{{ url_for('delete_task', index=loop.index0) }}">Удалить</a>
+                    <span>{{ task.content }}</span>
+                    <a href="{{ url_for('delete_task', id=task.id) }}">Удалить</a>
                 </div>
             {% else %}
                 <p class="empty-state">Задач пока нет.</p>
